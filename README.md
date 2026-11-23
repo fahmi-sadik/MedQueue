@@ -1,2 +1,2 @@
 # MedQueue
-An AI powered appointment and queue management system
+An appointment and queue management system
