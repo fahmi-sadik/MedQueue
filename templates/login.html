@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinic Login</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        /* Style for mobile view of flash messages */
+        .flash-message {
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            max-width: 90%;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: fadein 0.5s, fadeout 0.5s 4s forwards;
+        }
+
+        @keyframes fadein {
+            from { top: -50px; opacity: 0; }
+            to { top: 1rem; opacity: 1; }
+        }
+        @keyframes fadeout {
+            from { opacity: 1; }
+            to { opacity: 0; display: none; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Flash Messages Container (copied from Base.html logic for standalone functionality) -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                {% set bg_color = {'success': 'bg-green-500', 'warning': 'bg-yellow-500', 'danger': 'bg-red-500', 'info': 'bg-blue-500'}.get(category, 'bg-gray-500') %}
+                <div class="flash-message {{ bg_color }} text-white font-semibold">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="w-full max-w-md bg-white rounded-xl shadow-2xl p-8 space-y-8 transform transition duration-500 hover:shadow-3xl">
+            <h2 class="text-3xl font-extrabold text-gray-900 text-center">
+                Sign in to Your Account
+            </h2>
+            <p class="text-center text-sm text-gray-600">
+                Appointment Management System
+            </p>
+
+            <form method="POST" action="{{ url_for('login') }}" class="space-y-6">
+                <!-- Username Field -->
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                    <div class="mt-1">
+                        <input id="username" name="username" type="text" required autofocus
+                               class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 sm:text-sm"
+                               placeholder="Enter your username">
+                    </div>
+                </div>
+
+                <!-- Password Field -->
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <div class="mt-1">
+                        <input id="password" name="password" type="password" required
+                               class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 sm:text-sm"
+                               placeholder="Enter your password">
+                    </div>
+                </div>
+
+                <!-- Login Button -->
+                <button type="submit"
+                        class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
+                    Sign in
+                </button>
+            </form>
+
+            <div class="text-center mt-6">
+                <p class="text-sm text-gray-600">
+                    New patient?
+                    <a href="{{ url_for('register') }}" class="font-medium text-indigo-600 hover:text-indigo-500 transition duration-150">
+                        Register here
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

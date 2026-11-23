@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Clinic Appointment System{% end block %}</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Set a default modern font and clean background */
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        /* Style for mobile view of flash messages */
+        .flash-message {
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            max-width: 90%;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: fadein 0.5s, fadeout 0.5s 4s forwards;
+        }
+
+        @keyframes fadein {
+            from { top: -50px; opacity: 0; }
+            to { top: 1rem; opacity: 1; }
+        }
+        @keyframes fadeout {
+            from { opacity: 1; }
+            to { opacity: 0; display: none; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Flash Messages Container -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                {% set bg_color = {'success': 'bg-green-500', 'warning': 'bg-yellow-500', 'danger': 'bg-red-500', 'info': 'bg-blue-500'}.get(category, 'bg-gray-500') %}
+                <div class="flash-message {{ bg_color }} text-white font-semibold">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+
+    <!-- Navigation Header -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo / Home Link -->
+                <div class="flex-shrink-0">
+                    <a href="{{ url_for('home') }}" class="text-2xl font-bold text-indigo-600 hover:text-indigo-800 transition duration-150">
+                        <span class="text-3xl">&#9883;</span> ClinicQueue
+                    </a>
+                </div>
+
+                <!-- Navigation Links -->
+                <div class="flex items-center space-x-4">
+                    {% if current_user.is_authenticated %}
+                        <!-- Authenticated User Links -->
+                        <div class="hidden sm:ml-6 sm:flex sm:space-x-4">
+                            <!-- Dashboard Link -->
+                            {% if current_user.role == 'admin' %}
+                                <a href="{{ url_for('admin_dashboard') }}" 
+                                   class="text-gray-900 hover:bg-indigo-50 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition duration-150">
+                                    Admin Dashboard
+                                </a>
+                            {% else %}
+                                <a href="{{ url_for('user_dashboard') }}" 
+                                   class="text-gray-900 hover:bg-indigo-50 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition duration-150">
+                                    My Dashboard
+                                </a>
+                            {% endif %}
+                            
+                            <!-- Logout Button -->
+                            <a href="{{ url_for('logout') }}" 
+                               class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition duration-150 shadow-md">
+                                Logout ({{ current_user.username }})
+                            </a>
+                        </div>
+                    {% else %}
+                        <!-- Non-Authenticated Links -->
+                        <div class="hidden sm:ml-6 sm:flex sm:space-x-4">
+                            <a href="{{ url_for('login') }}" 
+                               class="text-gray-900 hover:bg-indigo-50 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition duration-150">
+                                Login
+                            </a>
+                            <a href="{{ url_for('register') }}" 
+                               class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition duration-150 shadow-md">
+                                Register
+                            </a>
+                        </div>
+                    {% endif %}
+
+                    <!-- Mobile Menu Button (Hamburger) - Not fully functional without JS, but visually present -->
+                    <button type="button" 
+                            class="sm:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white transition duration-150" 
+                            aria-controls="mobile-menu" aria-expanded="false">
+                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="py-10">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <!-- Content from inheriting template goes here -->
+            {% block content %}{% end block %}
+        </div>
+    </main>
+
+    <!-- Simple Footer -->
+    <footer class="bg-gray-100 mt-12 py-4 border-t border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-gray-500">
+            &copy; {{ moment().format('YYYY') }} Clinic Appointment System. All rights reserved.
+        </div>
+    </footer>
+
+</body>
+</html>

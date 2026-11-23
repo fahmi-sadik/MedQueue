@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #eef2f6; }
+        /* Style for the current status badge */
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        /* Custom list item styling */
+        .list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.5rem;
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            transition: all 0.2s;
+        }
+        .list-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+        }
+        /* Specific status colors */
+        .status-pending { background-color: #fbd38d; color: #975a16; } /* Amber */
+        .status-in-chamber { background-color: #63b3ed; color: #2c5282; } /* Blue */
+    </style>
+</head>
+<body class="p-6">
+    <div class="max-w-7xl mx-auto">
+        <header class="flex justify-between items-center mb-8 p-6 bg-white rounded-xl shadow-lg">
+            <h1 class="text-3xl font-extrabold text-gray-900">Admin Appointment Queue (Priority Boost Based)</h1>
+            <div class="flex items-center space-x-4">
+                <a href="{{ url_for('admin_add_doctor') }}" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md hover:shadow-lg">
+                    Add Doctor
+                </a>
+                <a href="{{ url_for('logout') }}" class="text-gray-500 hover:text-gray-700 font-semibold py-2 px-4 rounded-lg border border-gray-300 hover:border-gray-500 transition duration-150 ease-in-out">
+                    Logout (Admin)
+                </a>
+            </div>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mb-4">
+                    {% for category, message in messages %}
+                        <div class="p-4 rounded-lg text-sm {% if category == 'danger' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% elif category == 'warning' %}bg-yellow-100 text-yellow-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Filter and Timer Section -->
+        <div class="flex justify-between items-center mb-6 p-4 bg-white rounded-xl shadow-lg">
+            
+            <!-- Doctor Filter Dropdown -->
+            <form method="GET" action="{{ url_for('admin_dashboard') }}" class="flex items-center space-x-3">
+                <label for="doctor_filter" class="text-gray-700 font-medium">Filter by Doctor:</label>
+                <select name="doctor_id" id="doctor_filter" onchange="this.form.submit()" 
+                        class="block w-64 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    
+                    <!-- Option for "All Doctors" - value is an empty string -->
+                    <option value="" {% if selected_doctor_id == '' %}selected{% endif %}>
+                        All Doctors ({{ doctors|length }})
+                    </option>
+
+                    {% for doctor in doctors %}
+                        <option value="{{ doctor.id }}" {% if selected_doctor_id and selected_doctor_id|string == doctor.id|string %}selected{% endif %}>
+                            Dr. {{ doctor.name }} ({{ doctor.specialty }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            <!-- Priority Boost Timer -->
+            <div class="text-right">
+                <p class="text-sm text-gray-600">Priority Boost in:</p>
+                <p id="timer" class="text-3xl font-mono font-bold text-indigo-600">00:00</p>
+                <p class="text-xs text-gray-500">(Refreshes queue)</p>
+            </div>
+        </div>
+
+        <!-- Appointment Queue Display -->
+        <div class="space-y-6">
+            
+            <!-- 1. Appointments In Chamber (Highest Priority Display) -->
+            {% if in_chamber_list %}
+                <h2 class="text-2xl font-semibold text-gray-800 border-b pb-2">In Chamber (Current Patients)</h2>
+                {% for appointment in in_chamber_list %}
+                    <div class="list-item bg-blue-50 border-l-4 border-blue-500">
+                        <div class="flex-1 min-w-0 pr-4">
+                            <p class="text-xl font-bold text-blue-700">Appointment #{{ appointment.id }}</p>
+                            <p class="text-lg text-gray-800">
+                                Patient: <span class="font-semibold">{{ user_map.get(appointment.user_id, 'N/A') }}</span>
+                            </p>
+                            <p class="text-md text-gray-600">
+                                Doctor: <span class="font-medium">{{ doctor_map.get(appointment.doctor_id, 'N/A') }}</span>
+                            </p>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <span class="status-badge status-in-chamber">In Chamber</span>
+                            <!-- Actions -->
+                            <div class="flex space-x-2">
+                                <!-- Mark as Done Button (Visible only if status is in_chamber) -->
+                                <form method="POST" action="{{ url_for('update_appointment_status', id=appointment.id) }}" 
+                                    onsubmit="return confirm('Are you sure you want to mark this patient as DONE/Completed?');">
+                                    <input type="hidden" name="new_status" value="completed">
+                                    <!-- CRITICAL FIX: Ensure the hidden field is correctly populated with '' for 'All Doctors' -->
+                                    <input type="hidden" name="current_doctor_id" value="{{ selected_doctor_id or '' }}">
+                                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md hover:shadow-lg">
+                                        Mark as Done
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- 2. Pending Appointments (Priority Group + FIFO) -->
+            <h2 class="text-2xl font-semibold text-gray-800 border-b pb-2 pt-4">Pending Queue</h2>
+
+            {% set all_pending = priority_group + fifo_queue %}
+
+            {% if all_pending %}
+                {% for appointment in all_pending %}
+                    <div class="list-item border-l-4 border-yellow-500">
+                        <!-- Patient Info -->
+                        <div class="flex-1 min-w-0 pr-4">
+                            <p class="text-xl font-bold text-gray-800">Appointment #{{ appointment.id }}</p>
+                            <p class="text-lg text-gray-800">
+                                Patient: <span class="font-semibold">{{ user_map.get(appointment.user_id, 'N/A') }}</span>
+                            </p>
+                            <div class="flex items-center space-x-4 text-md text-gray-600">
+                                <p>Doctor: <span class="font-medium">{{ doctor_map.get(appointment.doctor_id, 'N/A') }}</span></p>
+                                <p>Emergency: <span class="font-medium text-red-600">{{ appointment.emergency_level }}</span></p>
+                                <p>Wait Boost: <span class="font-medium text-purple-600">{{ appointment.priority_boost_counter }}</span></p>
+                            </div>
+                            
+                            {% if loop.index <= 4 and selected_doctor_id == '' %}
+                            <p class="text-xs text-indigo-500 mt-1 font-semibold">
+                                PRIORITY GROUP: Sorted by Emergency Level ({{ appointment.emergency_level }})
+                            </p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Status and Actions -->
+                        <div class="flex items-center space-x-4">
+                            <span class="status-badge status-pending">Pending</span>
+                            
+                            <div class="flex space-x-2">
+                                <!-- 1. Move to Chamber Button (Visible if status is pending) -->
+                                <form method="POST" action="{{ url_for('update_appointment_status', id=appointment.id) }}">
+                                    <input type="hidden" name="new_status" value="in_chamber">
+                                    <!-- CRITICAL FIX: Ensure the hidden field is correctly populated with '' for 'All Doctors' -->
+                                    <input type="hidden" name="current_doctor_id" value="{{ selected_doctor_id or '' }}">
+                                    <button type="submit" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md hover:shadow-lg"
+                                        onclick="return confirm('Are you sure you want to move this patient to the chamber? (Max one in chamber per doctor)');">
+                                        Move to Chamber
+                                    </button>
+                                </form>
+
+                                <!-- 2. Mark as Done Button (Visible if status is pending) -->
+                                <form method="POST" action="{{ url_for('update_appointment_status', id=appointment.id) }}" 
+                                    onsubmit="return confirm('Are you sure you want to mark this appointment as DONE/Completed?');">
+                                    <input type="hidden" name="new_status" value="completed">
+                                    <!-- CRITICAL FIX: Ensure the hidden field is correctly populated with '' for 'All Doctors' -->
+                                    <input type="hidden" name="current_doctor_id" value="{{ selected_doctor_id or '' }}">
+                                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out shadow-md hover:shadow-lg">
+                                        Mark as Done
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center p-10 bg-white rounded-xl shadow-lg">
+                    <p class="text-xl text-gray-500">No active appointments (Pending or In Chamber) found{% if selected_doctor_id %}{% if selected_doctor_id|string|length > 0 %} for this doctor{% endif %}{% endif %}.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Timer JavaScript -->
+    <script>
+        // Set the boost interval to 60 seconds (1 minute) as defined in app.py
+        const interval = 60; 
+
+        function updateTimer() {
+            const now = new Date();
+            // Calculate seconds remaining until the next minute mark
+            const secondsSinceStart = now.getSeconds();
+            const secondsToNextInterval = interval - secondsSinceStart;
+
+            const minutes = Math.floor(secondsToNextInterval / 60);
+            const seconds = secondsToNextInterval % 60;
+            
+            const timerElement = document.getElementById('timer');
+            
+            // Format time as MM:SS (always display 00:XX since interval is 1 minute)
+            const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            
+            if (timerElement) {
+                timerElement.textContent = formattedTime;
+                
+                // If it hits 0, it means the boost should be happening now, so refresh the page
+                // to show the updated priority counter on the appointments.
+                if (seconds === 0 && secondsSinceStart !== 0) {
+                     // Wait a moment to ensure the Python job has time to commit the changes
+                     setTimeout(() => {
+                        window.location.reload(); 
+                     }, 1500); 
+                }
+            }
+        }
+
+        // Initialize the timer and set it to update every second
+        document.addEventListener('DOMContentLoaded', () => {
+            updateTimer();
+            setInterval(updateTimer, 1000);
+        }
+        );
+    </script>
+</body>
+</html>
